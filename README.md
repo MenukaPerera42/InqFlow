@@ -12,8 +12,9 @@ Node.js 22 LTS or newer, npm, and Docker with Compose. PostgreSQL must be reacha
 npm ci
 cp .env.example .env
 cp apps/web/.env.example apps/web/.env.local
-# Edit .env: set matching PostgreSQL credentials/URLs, a 12+ character seed password,
-# and a random 32+ character SESSION_SECRETS value. Keep both files uncommitted.
+# Edit .env: set matching PostgreSQL credentials/URLs and a 12+ character seed password.
+# Generate SESSION_SECRETS with `openssl rand -hex 32` and paste it into .env.
+# Keep both environment files uncommitted.
 npm run db:generate
 docker compose up -d postgres
 npm run db:deploy
@@ -22,7 +23,9 @@ npm run db:seed
 
 The example URLs use port 5432; change `POSTGRES_PORT`, `DATABASE_URL`, and `TEST_DATABASE_URL` together if that port is occupied. The development seed creates `amina@example.test` and `ravi@example.test`. Both use `SEED_STAFF_PASSWORD` **when first created**; reseeding preserves existing password hashes. These are fictional development accounts, not production credentials.
 
-Start the services in separate terminals from the repository root:
+For an existing checkout, keep your current `.env` instead of copying the example over it. An existing Docker volume retains its initialized database password even if `.env` changes. See [local startup troubleshooting](docs/LOCAL_SETUP_TROUBLESHOOTING.md).
+
+Start both services from the repository root with `npm run dev`. It checks that ports 3000 and 3001 are free and stops both child processes on Ctrl-C. Alternatively, start them in separate terminals:
 
 ```sh
 npm run dev:api

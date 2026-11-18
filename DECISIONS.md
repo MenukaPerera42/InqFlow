@@ -19,3 +19,7 @@ Each successful creation request makes a distinct inquiry. The form disables sub
 ## AI assistance
 
 Codex assisted with code, tests, design, and documentation. The suggestion to use server-side sessions with strict Origin validation was accepted for the same-site workflow. A more elaborate token or CSRF service and real-time status synchronization were rejected because the current security model and version-conflict handling cover the assessment workflow with less complexity. The developer submitting this work should be able to explain each decision and test. Detailed implementation history and earlier risk notes are preserved in [docs/TECHNICAL_HISTORY.md](docs/TECHNICAL_HISTORY.md); the current security analysis is in [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md).
+
+## Local startup recovery
+
+The root `npm run dev` starts the two existing workspace servers and stops them together. It checks ports 3000 and 3001 first so Next.js cannot silently switch ports and break the configured cookie origin. Docker remains an explicit step. An existing PostgreSQL volume retains its initialized password even when `.env` changes; local recovery changed only the development database role password and two seeded account hashes, preserving inquiries and migrations. The ignored local file holds newly generated secrets. Setup still requires explicit Prisma generation after `npm ci` because npm 12 blocks some dependency install scripts by default.

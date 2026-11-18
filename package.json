@@ -5,12 +5,13 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "node scripts/dev.mjs",
     "dev:web": "npm run dev -w @inquiry/web",
     "dev:api": "node --env-file=.env --import tsx --watch apps/api/src/server.ts",
     "build": "npm run db:generate && npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces",
-    "test": "npm run test --workspaces",
+    "test": "npm run test --workspaces && node --test scripts/*.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "node --env-file=.env node_modules/prisma/build/index.js generate --schema apps/api/prisma/schema.prisma",
