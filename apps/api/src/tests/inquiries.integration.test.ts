@@ -159,6 +159,20 @@ describe.sequential('inquiry API', () => {
     ).toBe(0);
   });
 
+  it('reports an oversized request as a client error without exposing internals', async () => {
+    const response = await request(app)
+      .post('/inquiries')
+      .set('Origin', origin)
+      .send({ ...inquiryBody, description: 'x'.repeat(20_000) });
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({
+      error: {
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'Request body is too large.',
+      },
+    });
+  });
+
   it('requires authentication and an approved origin', async () => {
     const preflight = await request(app)
       .options(`/inquiries/${crypto.randomUUID()}/status`)

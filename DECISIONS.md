@@ -1,57 +1,21 @@
-# Technical decisions
+# InqFlow decisions
 
-- **npm workspaces:** Native npm support keeps installation and shared scripts simple without another build system.
-- **Separate web and API apps:** Next.js handles the interface; Express owns future HTTP and business operations. This preserves independent testing and clear server-side security boundaries.
-- **Docker Compose PostgreSQL:** Provides a reproducible local database and persistent named volume. Credentials come from an ignored `.env` file; no production credentials are supplied.
-- **Sessions:** Stage 03 uses server-side sessions with HttpOnly cookies and PostgreSQL persistence. Stage 01 had no authentication placeholder.
-- **Minimal health endpoint:** It tests API availability without requiring PostgreSQL, so foundation tests stay deterministic.
+## Assumptions
 
-## Limitations
+The assessment permits seeded staff accounts and leaves inquiry ownership, status transitions, and duplicate handling to engineering judgment. InqFlow is a small same-site application: the web app and API can use different localhost ports, while production would require direct HTTPS and an explicit origin configuration. This repository provides a local development setup, not a production deployment.
 
-Stage 01 had no database integration. Stage 02 added Prisma schema, migrations, and seeding. Stage 03 added authentication endpoints. Inquiry endpoints, forms, and deployment configuration remain absent. The assessment PDF became available before Stage 02 implementation.
+## Three design choices
+
+1. **Creator-only access.** Every inquiry belongs to the staff member who captured it. The API filters list, detail, and update queries by the authenticated user's ID. Missing and inaccessible IDs both return 404, avoiding record disclosure. Two seeded users and real PostgreSQL integration tests exercise this rule.
+2. **Forward-only lifecycle with version checks.** Inquiries move `NEW → IN_PROGRESS → RESOLVED`. Reopening and same-status updates are rejected. A conditional database update checks ID, owner, status, and version, then increments the version atomically. A stale tab receives 409 and can refresh. This is simpler than real-time synchronization while preventing lost updates.
+3. **Cookie sessions and a browser API client.** Express stores sessions in PostgreSQL and sends an HttpOnly, SameSite=Lax cookie. Browser requests include credentials; exact-origin CORS and Origin checks protect unsafe methods. The Next.js workspace checks `/auth/me` before showing inquiry data, and TanStack Query clears cached data on logout or unauthorized responses. Express remains the authorization boundary.
+
+The UI uses the supplied InqFlow brand, Tailwind, native semantic controls, React Hook Form, Zod, and a small typed Fetch client. These libraries keep forms and server state clear without adding an admin framework or a second backend. Prisma owns the database schema and migrations; Docker Compose supports reproducible local testing.
+
+## Accepted trade-off and next improvement
+
+Each successful creation request makes a distinct inquiry. The form disables submission while pending and warns that a lost response may still have saved the record; it cannot guarantee exactly-once creation. If duplicate capture becomes a real operational issue, add a narrowly scoped idempotency key with server persistence. For production, separately review reverse-proxy handling, secret delivery, distributed rate limiting, and cross-site cookie policy before deployment. No production hosting is part of this assessment.
 
 ## AI assistance
 
-Codex assisted with foundation code, configuration, tests, and documentation. All generated work requires review against the assessment before submission.
-
-## Stage 02 database decisions
-
-- **Assessment alignment:** The assessment permits seeded accounts and leaves ownership and status rules to engineering judgment. We choose creator-only inquiry access and a forward-only lifecycle (`NEW` → `IN_PROGRESS` → `RESOLVED`). Future API services must enforce both; the schema alone does not authorize access or validate transitions.
-- **Prisma 6.19.3 in the API workspace:** Its standard PostgreSQL client keeps configuration small and avoids a separate database package or driver adapter. Only the Express backend imports database code. The client is initialized lazily and reused, without connecting at application import time.
-- **Integrity and lookup paths:** Email is unique, every inquiry has a required user foreign key with restricted deletion, and required fields are non-nullable. Indexes on `(createdById, createdAt)` and `(createdById, status)` support owner-scoped listing and status filtering. UUIDs avoid sequential record IDs; timestamps use PostgreSQL `timestamptz`.
-- **Optimistic concurrency:** `version` starts at 1. A future status update will match both inquiry ID and expected version, increment the version atomically, and return HTTP 409 if the version is stale. No locking or real-time sync is planned.
-- **Seed credentials:** bcrypt hashes the local development password with cost 12. Upsert creates the two fictional staff accounts once and leaves existing passwords untouched on later runs. The password comes from ignored `.env` configuration.
-- **Integration isolation:** Real PostgreSQL constraint tests use a dedicated `inquiry_test` schema. The setup and tests reject the public development schema, and tests remove only their own rows. This shares the local database server without risking development data cleanup.
-
-The accepted trade-off is that field lengths, email normalization, and lifecycle rules are deferred to later API validation. Prisma types and database non-null constraints do not replace runtime validation. AI assistance proposed the schema and test setup; the isolation guard and narrow Stage 02 scope were retained after review.
-
-Dependency audit at Stage 02 reports 19 high-severity advisories, primarily in development tooling; the reported production-path chain is through Prisma CLI configuration and `deepmerge-ts`. Resolving it requires evaluating a Prisma major upgrade or dependency override, so it remains a documented limitation rather than an untested version change.
-
-## Stage 03 authentication and security review
-
-- **Server-side sessions:** Express Session stores only `userId` in PostgreSQL through `connect-pg-simple`. Cookie values are opaque, signed IDs; session regeneration on login and destruction on logout reduce fixation and reuse risks. The store creates its small `staff_sessions` table in the configured schema. This is independent of Prisma business tables.
-- **Cookie policy:** `inquiry.sid` is HttpOnly, `SameSite=Lax`, path `/`, and has an eight-hour lifetime. It is Secure in production. Reads do not roll the cookie or extend store expiration. The API deliberately does not trust proxy headers; production requires direct HTTPS until proxy handling is explicitly designed. Signing secrets come from `SESSION_SECRETS`, with the first value used for new cookies and older values accepted during rotation.
-- **CORS and CSRF:** Credentialed CORS accepts only exact configured origins. Every unsafe method requires an approved `Origin`; missing headers are rejected. This protects the browser cookie flow, including login and logout, without a token service. It relies on browser Origin behavior and same-site deployment; non-browser clients can spoof Origin but still need authentication. Cross-site frontend hosting would require revisiting cookies and CSRF.
-- **Authentication and authorization:** Zod rejects malformed login shapes; bcrypt checks the stored hash; failures use generic 401 responses. `requireAuth` checks the session UUID and resolves a current user on each protected request. Future inquiry queries must filter by both record ID and authenticated `createdById`, returning 404 when no owned row exists. Record-level checks are Stage 04 work.
-- **Rate limit:** Login allows 20 attempts per IP per 15 minutes with an in-memory limiter. It is process-local and not sufficient for distributed production deployment.
-- **Dependency audit:** Before and after Stage 03, `npm audit` reports 19 high advisories and no critical advisories. Affected direct packages are `eslint-config-next`, `typescript-eslint`, `vitest`, and Prisma CLI; transitive reports include `micromatch`, `picomatch`, `fdir`, `fast-glob`, `tinyglobby`, `vite`, `eslint-import-resolver-typescript`, and `deepmerge-ts`. The pattern-matching issues are in lint/build/test tooling, not the authentication request path. `npm audit --omit=dev` reports three linked advisories in Prisma CLI configuration through `deepmerge-ts`; the API runs the generated Prisma Client, not the CLI or config merger, on requests. The CLI receives trusted local configuration, so recursive untrusted merge inputs are not part of this application. Audit dry-run did not reduce the advisory count with compatible updates. Reported fixes for the direct packages require major or incompatible version changes (including Prisma 7); these were deferred to avoid destabilizing the working assessment. No advisory was suppressed or overridden. The new session, PostgreSQL, CORS, rate-limit, and Zod packages had no reported direct advisory in this audit.
-
-AI assistance helped implement and review the authentication middleware and integration tests. A token-based CSRF service was considered and rejected for this same-site application in favor of strict Origin validation plus SameSite cookies; this choice must be revisited if hosting becomes cross-site.
-
-## Stage 04 inquiry API
-
-- **Owner-scoped queries:** Creation takes the owner from `requireAuth`; list, detail, and status updates constrain Prisma queries by `createdById`. Missing and inaccessible records share a 404 response. This implements the creator-only rule selected in Stage 02 without disclosing another user's records.
-- **Lifecycle and stale data:** A single transition map permits `NEW → IN_PROGRESS → RESOLVED`; same-status requests and reopening are conflicts. The status update uses Prisma `updateManyAndReturn` with inquiry ID, owner ID, expected version, and expected current status in the database condition. It increments the version atomically. A competing request receives 409, and the client should refresh. This prevents the two-tab overwrite scenario without real-time synchronization.
-- **Capture and retrieval:** Zod trims and limits required input, rejects unknown writable fields, and validates filters and UUID IDs. Offset pagination has bounded page sizes and a deterministic `createdAt`/`id` order. Case-insensitive search covers customer name and subject. Every successful POST creates a separate inquiry; there is no exactly-once guarantee or fuzzy deduplication. The frontend should disable repeat submission while pending and avoid automatic retries after uncertain responses.
-
-No schema migration or new dependency was needed. Inquiry integration tests use the dedicated `inquiry_test` schema and real sessions. AI assistance helped draft the API and tests; the conditional update and owner-scoped 404 policy were kept to match the assessment's stale-data and direct-link scenarios.
-
-## Stage 05 frontend
-
-- **API boundary:** The Next.js app calls the existing Express API from the browser with `credentials: 'include'`. React Query caches session and inquiry reads, invalidates lists after changes, and clears cached user data on unauthorized responses or logout. Session cookies remain HttpOnly and are never copied into browser storage.
-- **Client-side workspace:** Protected pages check `/auth/me` before rendering inquiry content. They do not server-render staff data, so initial navigation waits for the browser session check. Express authentication and owner-scoped queries remain the security boundary.
-- **Forms and feedback:** React Hook Form and Zod give immediate required-field and length feedback. Pending buttons prevent repeat submissions while a request is active. A lost response to creation may still mean the server saved the inquiry, so the UI asks staff to check the list before retrying; the backend has no idempotency key.
-- **Status conflicts:** The detail page sends the displayed version and offers a refresh after a 409 version conflict. It shows only the next valid transition, while the API remains authoritative.
-- **Visual system:** Tailwind utilities and a small set of CSS tokens use the existing brand kit logo, coral accent, and charcoal type. The primary coral was darkened for legible white button text. Layouts use semantic controls, visible focus, and mobile cards instead of a compressed table.
-- **UI dependencies:** Native semantic controls cover this small workflow, so shadcn/ui was not initialized. TanStack Query, React Hook Form, Zod, and individual Lucide icons provide the needed state, validation, and visual primitives without another component framework.
-- **Scope:** The web app has no server-side API proxy, deployment configuration, or additional inquiry operations. Browser verification covered the complete seeded flow at desktop and mobile widths against the real API and PostgreSQL.
+Codex assisted with code, tests, design, and documentation. The suggestion to use server-side sessions with strict Origin validation was accepted for the same-site workflow. A more elaborate token or CSRF service and real-time status synchronization were rejected because the current security model and version-conflict handling cover the assessment workflow with less complexity. The developer submitting this work should be able to explain each decision and test. Detailed implementation history and earlier risk notes are preserved in [docs/TECHNICAL_HISTORY.md](docs/TECHNICAL_HISTORY.md); the current security analysis is in [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md).

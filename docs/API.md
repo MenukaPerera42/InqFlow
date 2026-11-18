@@ -54,6 +54,7 @@ A stale version returns 409 `VERSION_CONFLICT`; an invalid transition returns 40
 
 - 400 `INVALID_INPUT`: invalid body, query, or ID; 400 `INVALID_JSON`: malformed JSON.
 - 401 `UNAUTHORIZED`: missing, expired, or invalid session.
+- 413 `PAYLOAD_TOO_LARGE`: JSON request body exceeds the 16 KB limit.
 - 403 `INVALID_ORIGIN`: missing or unapproved Origin on an unsafe method.
 - 404 `NOT_FOUND`: missing or inaccessible inquiry.
 - 409 `INVALID_STATUS_TRANSITION` or `VERSION_CONFLICT`: status rule or stale data.

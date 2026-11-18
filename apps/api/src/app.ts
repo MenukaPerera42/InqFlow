@@ -43,6 +43,19 @@ export function createApp(
         sendError(response, 400, 'INVALID_JSON', 'Malformed JSON request.');
         return;
       }
+      if (
+        error instanceof Error &&
+        'type' in error &&
+        error.type === 'entity.too.large'
+      ) {
+        sendError(
+          response,
+          413,
+          'PAYLOAD_TOO_LARGE',
+          'Request body is too large.',
+        );
+        return;
+      }
       console.error('API request failed');
       sendError(
         response,
