@@ -1,6 +1,6 @@
-# Customer Inquiry System
+# InqFlow
 
-Stage 01 foundation for a staff customer inquiry management application. Business features are planned but not implemented.
+InqFlow is a staff customer inquiry management application. Stage 04 provides the authenticated backend inquiry workflow; the frontend remains a placeholder.
 
 ## Stack
 
@@ -37,7 +37,7 @@ Check database health with `docker compose ps`. Stop it with `docker compose dow
 
 ## Status
 
-Implemented: workspace setup, placeholder web app, Express health endpoint, PostgreSQL development container configuration, and foundation tests. Authentication API is implemented; inquiry workflows are future work. Prisma schema, migration, seeding, and database integration tests were added in Stage 02. The assessment PDF was not present in the initial empty workspace but became available before Stage 02.
+Implemented: workspace setup, placeholder web app, Express health endpoint, PostgreSQL development container configuration, and foundation tests. Authentication and inquiry APIs are implemented; frontend inquiry workflows are future work. Prisma schema, migration, seeding, and database integration tests were added in Stage 02. The assessment PDF was not present in the initial empty workspace but became available before Stage 02.
 
 ## Stage 02 database setup
 
@@ -60,7 +60,7 @@ npm run test:db
 
 Run all checks with `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test`, `npm run test:db`, and `npm run build`. Database tests require a running PostgreSQL container and the prepared test schema; the normal health and frontend tests do not.
 
-Stage 02 added persistence structure. Stage 03 adds authentication; inquiry APIs, record-level ownership enforcement, status transitions, and frontend workflows remain future work.
+Stage 02 added persistence structure. Stage 03 added authentication. Stage 04 adds inquiry APIs, creator-only ownership enforcement, and status transitions. Frontend workflows remain future work.
 
 ## Stage 03 authentication
 
@@ -85,4 +85,21 @@ curl -i -b /tmp/inquiry-cookies -H 'Origin: http://localhost:3000' \
 `POST /auth/login` returns 200 and `{ "user": { "id", "name", "email" } }`, 400 for invalid input, 401 for invalid credentials, and 403 for an invalid or missing Origin. `GET /auth/me` returns 200 with the same safe user object or 401 if the session is missing, expired, or its user has been deleted. `POST /auth/logout` returns 204 with no body or 401 without a valid session. Infrastructure failures return 500 with a generic error. Login attempts are limited to 20 per 15 minutes per IP in one API process.
 
 Run `npm run db:test:prepare && npm run test:auth` for the real PostgreSQL authentication tests. The test suite uses the dedicated `inquiry_test` schema. Run `npm run test` for the foundation tests and `npm run test:db` for database constraints.
+
 # InqFlow
+
+## Stage 04 inquiry API
+
+The backend supports inquiry creation, owner-only listing and detail, case-insensitive name/subject search, status filtering, pagination, and forward-only status updates with version conflicts. See [docs/API.md](docs/API.md) for exact requests and responses. Each successful POST creates a separate inquiry; no backend idempotency key or duplicate-detection engine is included.
+
+```sh
+docker compose up -d postgres
+npm run db:deploy
+npm run db:seed
+npm run dev:api
+# In another terminal, after login:
+npm run db:test:prepare
+npm run test:inquiries
+```
+
+Run the full verification set with `npm run test`, `npm run test:db`, `npm run test:auth`, `npm run test:inquiries`, `npm run typecheck`, `npm run lint`, `npm run format:check`, and `npm run build`. Database integration tests require the dedicated `inquiry_test` schema. The web application has no inquiry UI yet.
