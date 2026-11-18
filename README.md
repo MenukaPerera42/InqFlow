@@ -1,6 +1,6 @@
 # InqFlow
 
-InqFlow is a staff customer inquiry management application. Stage 04 provides the authenticated backend inquiry workflow; the frontend remains a placeholder.
+InqFlow is a staff customer inquiry management application. Stage 05 adds a responsive frontend for the authenticated inquiry workflow.
 
 ## Stack
 
@@ -16,13 +16,16 @@ Node.js 20.9 or newer, npm, and Docker with Compose for the local database. Node
 npm ci
 cp .env.example .env
 # Edit .env and replace the development password.
+cp apps/web/.env.example apps/web/.env.local
 docker compose up -d postgres
+npm run db:deploy
+npm run db:seed
 npm run dev:api
 # In another terminal:
 npm run dev:web
 ```
 
-Open http://localhost:3000 for the placeholder page. The API health check is http://localhost:3001/health and returns `{"status":"ok"}`. The authentication API uses PostgreSQL for users and sessions. Docker Compose reads `.env`; the API uses `PORT` from its process environment and defaults to 3001.
+Open http://localhost:3000 and sign in with a seeded staff email and your local `SEED_STAFF_PASSWORD`. The API health check is http://localhost:3001/health and returns `{"status":"ok"}`. Docker Compose and the API read root `.env`; the web app reads `apps/web/.env.local`. Set `NEXT_PUBLIC_API_URL` to the browser-accessible API origin and `NEXT_PUBLIC_SITE_URL` to the web origin. The API's `FRONTEND_ORIGINS` must include the web origin. Both services must use the same site for the session cookie.
 
 Check database health with `docker compose ps`. Stop it with `docker compose down`; the named volume retains local data.
 
@@ -37,11 +40,11 @@ Check database health with `docker compose ps`. Stop it with `docker compose dow
 
 ## Status
 
-Implemented: workspace setup, placeholder web app, Express health endpoint, PostgreSQL development container configuration, and foundation tests. Authentication and inquiry APIs are implemented; frontend inquiry workflows are future work. Prisma schema, migration, seeding, and database integration tests were added in Stage 02. The assessment PDF was not present in the initial empty workspace but became available before Stage 02.
+Implemented through Stage 05: workspace setup, PostgreSQL persistence, session authentication, owner-scoped inquiry APIs, and a responsive web app for sign-in, listing, searching, filtering, creation, detail, status updates, and sign-out. Deployment configuration remains outside this stage.
 
 ## Stage 02 database setup
 
-Prisma 6.19.3 is owned by `apps/api`. The Stage 03 authentication API queries users; future inquiry services will use the same database client. The assessment PDF is now present and was reviewed for this stage.
+Prisma 6.19.3 is owned by `apps/api`. Authentication and inquiry services use the same database client. The assessment PDF was reviewed before Stage 02.
 
 After copying `.env.example` to `.env`, set `POSTGRES_PASSWORD`, `DATABASE_URL`, `TEST_DATABASE_URL`, and `SEED_STAFF_PASSWORD`. Use matching database credentials in both URLs and URL-encode special password characters. Keep the URL schemas as `public` and `inquiry_test` respectively. Use a different `POSTGRES_PORT` and matching URL port if local port 5432 is occupied. Never commit `.env`.
 
@@ -60,11 +63,11 @@ npm run test:db
 
 Run all checks with `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test`, `npm run test:db`, and `npm run build`. Database tests require a running PostgreSQL container and the prepared test schema; the normal health and frontend tests do not.
 
-Stage 02 added persistence structure. Stage 03 added authentication. Stage 04 adds inquiry APIs, creator-only ownership enforcement, and status transitions. Frontend workflows remain future work.
+Stage 02 added persistence structure. Stage 03 added authentication. Stage 04 added inquiry APIs, creator-only ownership enforcement, and status transitions. Stage 05 added frontend workflows.
 
 ## Stage 03 authentication
 
-The Express API implements server-side sessions persisted in PostgreSQL. The session cookie holds only an opaque signed session ID; the server-side session holds only `userId`. Sessions last up to eight hours from login, are not extended on reads, and survive an API restart while PostgreSQL is available. There is no login UI yet.
+The Express API implements server-side sessions persisted in PostgreSQL. The session cookie holds only an opaque signed session ID; the server-side session holds only `userId`. Sessions last up to eight hours from login, are not extended on reads, and survive an API restart while PostgreSQL is available. The web app provides the login UI.
 
 Set `SESSION_SECRETS` in ignored `.env` to a random value of at least 32 characters (for example, `openssl rand -base64 48`). Comma-separated values support rotation: the first signs new cookies and older values remain accepted. Set `FRONTEND_ORIGINS` to exact allowed origins, separated by commas if needed. The default local origin is `http://localhost:3000`; the API defaults to port 3001. Start the API with `npm run dev:api`, which loads `.env` from the repository root. In production, supply environment variables to the process and use direct HTTPS; secure cookies are enabled and the API does not trust proxy headers. A reverse-proxy deployment needs a separately reviewed proxy configuration.
 
@@ -102,4 +105,10 @@ npm run db:test:prepare
 npm run test:inquiries
 ```
 
-Run the full verification set with `npm run test`, `npm run test:db`, `npm run test:auth`, `npm run test:inquiries`, `npm run typecheck`, `npm run lint`, `npm run format:check`, and `npm run build`. Database integration tests require the dedicated `inquiry_test` schema. The web application has no inquiry UI yet.
+Run the full verification set with `npm run test`, `npm run test:db`, `npm run test:auth`, `npm run test:inquiries`, `npm run typecheck`, `npm run lint`, `npm run format:check`, and `npm run build`. Database integration tests require the dedicated `inquiry_test` schema.
+
+## Stage 05 web app
+
+The browser app uses credentialed requests to the API. Sign-in opens the staff workspace; expired sessions return to sign-in. The dashboard shows only the authenticated user's inquiries, with debounced name/subject search, status filtering, and pagination. The new inquiry form validates required fields and length limits. Detail pages show the current status and only the next permitted transition. A stale version response prompts a refresh before another update. The browser never stores credentials in local storage.
+
+The frontend tests cover authentication, form validation, list controls, creation, status changes, and stale-data handling. The UI was also checked in a browser against a seeded PostgreSQL-backed API at desktop and mobile widths. No deployment or new backend endpoint is part of Stage 05.
