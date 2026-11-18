@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "dev:web": "npm run dev -w @inquiry/web",
-    "dev:api": "npm run dev -w @inquiry/api",
+    "dev:api": "node --env-file=.env --import tsx --watch apps/api/src/server.ts",
     "build": "npm run db:generate && npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces",
@@ -19,7 +19,8 @@
     "db:deploy": "node --env-file=.env node_modules/prisma/build/index.js migrate deploy --schema apps/api/prisma/schema.prisma",
     "db:seed": "node --env-file=.env --import tsx apps/api/src/db/seed.ts",
     "db:test:prepare": "node apps/api/scripts/prepare-test-db.mjs",
-    "test:db": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/database.integration.test.ts"
+    "test:db": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/database.integration.test.ts",
+    "test:auth": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/auth.integration.test.ts"
   },
   "devDependencies": {
     "prettier": "^3.6.2"

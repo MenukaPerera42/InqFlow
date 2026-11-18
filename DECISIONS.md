@@ -3,12 +3,12 @@
 - **npm workspaces:** Native npm support keeps installation and shared scripts simple without another build system.
 - **Separate web and API apps:** Next.js handles the interface; Express owns future HTTP and business operations. This preserves independent testing and clear server-side security boundaries.
 - **Docker Compose PostgreSQL:** Provides a reproducible local database and persistent named volume. Credentials come from an ignored `.env` file; no production credentials are supplied.
-- **Planned sessions:** A later stage will use server-side sessions with Secure and HttpOnly cookies, backend authorization, and a suitable persistent session store. Stage 01 has no authentication placeholder.
+- **Sessions:** Stage 03 uses server-side sessions with HttpOnly cookies and PostgreSQL persistence. Stage 01 had no authentication placeholder.
 - **Minimal health endpoint:** It tests API availability without requiring PostgreSQL, so foundation tests stay deterministic.
 
 ## Limitations
 
-Stage 01 had no database integration. Stage 02 added Prisma schema, migrations, and seeding, but no business endpoints, forms, authentication, or deployment configuration. The assessment PDF became available before Stage 02 implementation.
+Stage 01 had no database integration. Stage 02 added Prisma schema, migrations, and seeding. Stage 03 added authentication endpoints. Inquiry endpoints, forms, and deployment configuration remain absent. The assessment PDF became available before Stage 02 implementation.
 
 ## AI assistance
 
@@ -26,3 +26,14 @@ Codex assisted with foundation code, configuration, tests, and documentation. Al
 The accepted trade-off is that field lengths, email normalization, and lifecycle rules are deferred to later API validation. Prisma types and database non-null constraints do not replace runtime validation. AI assistance proposed the schema and test setup; the isolation guard and narrow Stage 02 scope were retained after review.
 
 Dependency audit at Stage 02 reports 19 high-severity advisories, primarily in development tooling; the reported production-path chain is through Prisma CLI configuration and `deepmerge-ts`. Resolving it requires evaluating a Prisma major upgrade or dependency override, so it remains a documented limitation rather than an untested version change.
+
+## Stage 03 authentication and security review
+
+- **Server-side sessions:** Express Session stores only `userId` in PostgreSQL through `connect-pg-simple`. Cookie values are opaque, signed IDs; session regeneration on login and destruction on logout reduce fixation and reuse risks. The store creates its small `staff_sessions` table in the configured schema. This is independent of Prisma business tables.
+- **Cookie policy:** `inquiry.sid` is HttpOnly, `SameSite=Lax`, path `/`, and has an eight-hour lifetime. It is Secure in production. Reads do not roll the cookie or extend store expiration. The API deliberately does not trust proxy headers; production requires direct HTTPS until proxy handling is explicitly designed. Signing secrets come from `SESSION_SECRETS`, with the first value used for new cookies and older values accepted during rotation.
+- **CORS and CSRF:** Credentialed CORS accepts only exact configured origins. Every unsafe method requires an approved `Origin`; missing headers are rejected. This protects the browser cookie flow, including login and logout, without a token service. It relies on browser Origin behavior and same-site deployment; non-browser clients can spoof Origin but still need authentication. Cross-site frontend hosting would require revisiting cookies and CSRF.
+- **Authentication and authorization:** Zod rejects malformed login shapes; bcrypt checks the stored hash; failures use generic 401 responses. `requireAuth` checks the session UUID and resolves a current user on each protected request. Future inquiry queries must filter by both record ID and authenticated `createdById`, returning 404 when no owned row exists. Record-level checks are Stage 04 work.
+- **Rate limit:** Login allows 20 attempts per IP per 15 minutes with an in-memory limiter. It is process-local and not sufficient for distributed production deployment.
+- **Dependency audit:** Before and after Stage 03, `npm audit` reports 19 high advisories and no critical advisories. Affected direct packages are `eslint-config-next`, `typescript-eslint`, `vitest`, and Prisma CLI; transitive reports include `micromatch`, `picomatch`, `fdir`, `fast-glob`, `tinyglobby`, `vite`, `eslint-import-resolver-typescript`, and `deepmerge-ts`. The pattern-matching issues are in lint/build/test tooling, not the authentication request path. `npm audit --omit=dev` reports three linked advisories in Prisma CLI configuration through `deepmerge-ts`; the API runs the generated Prisma Client, not the CLI or config merger, on requests. The CLI receives trusted local configuration, so recursive untrusted merge inputs are not part of this application. Audit dry-run did not reduce the advisory count with compatible updates. Reported fixes for the direct packages require major or incompatible version changes (including Prisma 7); these were deferred to avoid destabilizing the working assessment. No advisory was suppressed or overridden. The new session, PostgreSQL, CORS, rate-limit, and Zod packages had no reported direct advisory in this audit.
+
+AI assistance helped implement and review the authentication middleware and integration tests. A token-based CSRF service was considered and rejected for this same-site application in favor of strict Origin validation plus SameSite cookies; this choice must be revisited if hosting becomes cross-site.
