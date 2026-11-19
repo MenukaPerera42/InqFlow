@@ -28,3 +28,7 @@
 - **Pending/rejected/suspended:** login response should be generic enough to limit account enumeration; signup duplicate email response must not reveal account state. Suspended users lose access even with an existing cookie.
 
 This is a proposal, not implemented policy. Unresolved scope choices are listed in `OPEN_DECISIONS.md`.
+
+## Phase 03 implemented subset
+
+Only ACTIVE users enter protected routes. ADMIN lists and changes active users' roles, manages teams, memberships, managers, and categories, and retains global inquiry read/status access. MANAGER reads active teams explicitly assigned through `TeamManager`, sees limited membership details there, and reads inquiries explicitly linked to those teams plus their own inquiries. MANAGER cannot edit team membership, roles, or categories and cannot change another creator's inquiry status. EMPLOYEE reads active teams through ordinary membership and active category details, creates and reads own inquiries, and retains creator status progression. No team membership is required for registration, approval, login, or own inquiry access. Pending/rejected/suspended accounts are denied. Assignment, comments, notifications, and analytics remain planned, not authorized by this implemented subset.

@@ -21,3 +21,7 @@ Confirm these choices before Phase 01. Implementing the recommended defaults wit
 ## Resolved for Phase 01
 
 The initial admin uses a one-time CLI; V1 staff migrate to ACTIVE EMPLOYEE without password changes; historical inquiries keep null team/assignee and creator visibility; future creator rights are view/comment and assignee rights include status progression. Phase 01 keeps V1 creator status behavior until Phase 02 policy enforcement. Remaining rows above still need product review where they conflict with these decisions.
+
+## Resolved for Phase 03
+
+Users may have multiple or zero memberships; managers may manage multiple or zero teams through a separate explicit relation. Admins alone edit teams, memberships, manager assignments, and categories. Category default team is optional; an inactive team's existing default link remains for history and cannot be chosen for a new default. Managers may read current active team-linked inquiries but gain no new assignment or status power. Existing teamless inquiries remain creator/admin visible. The remaining assignment eligibility, cross-team routing, comments, retention, and analytics choices are still open for later phases.

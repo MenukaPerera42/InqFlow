@@ -21,3 +21,7 @@ A staff member signs in, captures customer name/contact/subject/description, fin
 ## Out of scope without a new decision
 
 Microservices, AI assignment model, email/SMS, real-time sockets, external identity provider, production deployment, and changes to the original status lifecycle. The approved direction does not settle retention, reassignment rights, cross-team ticket ownership, or analytics definitions; see `OPEN_DECISIONS.md`.
+
+## Phase 03 delivered requirements
+
+Backend administrators can search/filter the safe user directory, change active users' roles while preserving the final active administrator, and manage team, membership, manager, and category lifecycles. Membership and management are separate multi-team relations; teamless users remain valid. Managers can view only explicitly managed active teams and their existing team-linked inquiries. Employees can view active teams they belong to and their own inquiries. Deactivation and removal preserve ticket records and audit history. Ticket assignment and the role-specific frontend remain later-phase work.

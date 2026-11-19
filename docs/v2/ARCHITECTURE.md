@@ -27,3 +27,7 @@ The schema and CLI bootstrap now exist. Existing HTTP routes and browser pages r
 ## Phase 02 account boundary
 
 `/auth/register` is public but origin-checked and rate-limited. `/admin/users` is protected by the current database-backed ACTIVE ADMIN role. Account state changes use conditional Prisma updates inside a transaction that also appends an `AccountAudit` record. Existing sessions store only user ID; role and active status are fetched per request. Inquiry services accept an admin-wide query scope while manager/employee calls retain creator filtering. No account-management frontend or team membership API exists yet.
+
+## Phase 03 management boundary
+
+`/admin/users`, `/admin/teams`, and `/admin/categories` hold administrator writes. `/teams` exposes scoped team reads to active users; `/categories` exposes only active category names and descriptions. Ordinary membership (`TeamMembership`) is distinct from explicit management (`TeamManager`), each with composite team/user keys. `ManagementAudit` records non-account lifecycle changes, while `AccountAudit` retains approval/suspension history. A category's nullable `defaultTeamId` points to a team but never triggers automatic assignment. Inquiry read predicates combine creator access with current manager assignment to the inquiry's active team; status writes retain the existing creator/admin rule. Phase 04 owns ticket routing, assignment, priority behavior, and new workflow policy.

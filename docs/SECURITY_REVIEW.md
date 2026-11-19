@@ -44,3 +44,9 @@ The [deepmerge-ts advisory](https://github.com/advisories/GHSA-ggr8-5vv4-36mx) d
 ## Remaining security actions
 
 Before any production deployment, review and update the two advisory chains, validate the deployment's HTTPS/proxy/cookie/CSRF topology, provision secrets outside local `.env`, and replace the process-local login limiter if running multiple API instances. These are deployment blockers, not evidence of an exploitable request path in the verified local setup.
+
+## Phase 03 authorization review
+
+Protected requests reload current role and account state from PostgreSQL. Team list and detail queries constrain rows by current membership or explicit manager assignment; inactive teams are excluded for non-admin users. Manager inquiry reads require both an explicit active team link on the inquiry and current manager authority. Status mutation retains creator/admin checks, so read access does not grant workflow powers. User, team, category, membership, and manager writes are ADMIN-only, validate strict request shapes, and write a separate audit row in the same transaction. Role changes revoke the affected user's sessions; team authority removal takes effect on the next query without revoking unrelated sessions. A database advisory lock protects the last-admin demotion check under concurrency. PostgreSQL unique indexes cover case-insensitive team/category names and composite membership/manager keys. Remaining operational risks include process-local rate limits and deployment-specific cookie/proxy policy.
+
+The Phase 03 reinstall and audit on 19 November 2026 reported **3 high, 0 critical** overall and with `--omit=dev`: `prisma`, `@prisma/config`, and `deepmerge-ts`. The older 19-package inventory above is historical; the current lockfile audit output is the release baseline. No dependency was force-upgraded during this phase.

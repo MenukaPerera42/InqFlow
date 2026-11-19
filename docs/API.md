@@ -23,7 +23,7 @@ Returns 201 with `Location: /inquiries/{id}` and `{ "data": { ...inquiry fields.
 
 ## GET /inquiries
 
-Returns only the current staff member's inquiries. Optional query parameters: `page` (default 1, maximum 1,000,000), `pageSize` (default 10, maximum 50), `status` (`NEW`, `IN_PROGRESS`, or `RESOLVED`), and `search` (1–100 trimmed characters). Search is case-insensitive across customer name and subject. Ordering is `createdAt` descending, then `id` descending.
+Employees receive only inquiries they created. Managers receive their own inquiries and inquiries explicitly linked to active teams they currently manage. Administrators receive all inquiries. Optional query parameters: `page` (default 1, maximum 1,000,000), `pageSize` (default 10, maximum 50), `status` (`NEW`, `IN_PROGRESS`, or `RESOLVED`), and `search` (1–100 trimmed characters). Search is case-insensitive across customer name and subject. Ordering is `createdAt` descending, then `id` descending.
 
 Example: `GET /inquiries?page=1&pageSize=10&status=NEW&search=connection`.
 
@@ -34,11 +34,11 @@ Example: `GET /inquiries?page=1&pageSize=10&status=NEW&search=connection`.
 }
 ```
 
-Returns 200, including for an empty result. `total` counts records under the same owner and filters as `data`.
+Returns 200, including for an empty result. `total` counts records under the same authorization scope and filters as `data`.
 
 ## GET /inquiries/:id
 
-The ID must be a UUID. Returns 200 with `{ "data": { ...inquiry fields... } }`, 400 for an invalid ID, or 404 when the record is missing or belongs to someone else.
+The ID must be a UUID. Returns 200 with `{ "data": { ...inquiry fields... } }`, 400 for an invalid ID, or 404 when the record is missing or outside the caller's scope.
 
 ## PATCH /inquiries/:id/status
 
@@ -76,6 +76,24 @@ All `/admin` routes require an authenticated ACTIVE ADMIN. Employees and manager
 - `POST /admin/users/:id/suspend`: ACTIVE → SUSPENDED for a non-admin account.
 - `POST /admin/users/:id/reactivate`: SUSPENDED → ACTIVE for a non-admin account.
 
-Account-action POST bodies must be empty JSON objects. Successful actions return 200 `{ "data": { ...safe user fields... } }`. Invalid input returns 400, missing authentication 401, non-admin 403, missing ID 404, conflicting/stale state or self-action 409 `ACCOUNT_CONFLICT`, and rate-limit excess 429. Each successful state change writes an `AccountAudit` row atomically. Suspended users lose protected access on their next request, including with an existing session cookie. Administrator accounts cannot be suspended through these routes. Role changes and team management are deferred.
+Account-action POST bodies must be empty JSON objects. Successful actions return 200 `{ "data": { ...safe user fields... } }`. Invalid input returns 400, missing authentication 401, non-admin 403, missing ID 404, conflicting/stale state or self-action 409 `ACCOUNT_CONFLICT`, and rate-limit excess 429. Each successful state change writes an `AccountAudit` row atomically. Suspended users lose protected access on their next request, including with an existing session cookie. Administrator accounts cannot be suspended through these routes.
 
-Admins may list, view, and update inquiries system-wide through the existing inquiry endpoints. Managers and employees retain creator-scoped inquiry access. Existing V1 response shapes and status rules are unchanged.
+Admins may list, view, and update inquiries system-wide through the existing inquiry endpoints. Managers may also read inquiries explicitly linked to active teams they manage, while status updates remain creator-scoped. Employees retain creator-scoped inquiry access. Existing V1 response shapes and status rules are unchanged.
+
+## V2 Phase 03 management API
+
+All routes below require an ACTIVE session. Unsafe methods require an approved Origin. `/admin` routes require ADMIN; denied calls return 403. Invalid bodies, IDs, and query values return 400. Missing or inaccessible resources return 404. Duplicates and stale state return 409. Successful reads and updates return `{ "data": ... }`; creation returns 201 with the same envelope; deletion of a membership or manager assignment returns 204. User, team, and category lists use `{ "data": [], "pagination": { "page", "pageSize", "total", "totalPages" } }`.
+
+- `GET /admin/users`: `page`, `pageSize` (1–50), `status`, `role`, and `search` (case-insensitive name/email). Stable order: created date and ID descending. The existing pending endpoint remains. `GET /admin/users/:id` also includes safe membership and managed-team details.
+- `PATCH /admin/users/:id/role`: strict `{ "role": "ADMIN" | "MANAGER" | "EMPLOYEE" }`. Target must be ACTIVE. Self-change and last active admin demotion return 409. A manager's assignments are removed on demotion; ordinary memberships remain. All target sessions are revoked. The change and its audit record commit together.
+- `POST /admin/teams`: strict `{ "name": string, "description"?: string | null }`. Name is trimmed, 2–120 characters, and unique ignoring case. Description is at most 1000 characters.
+- `GET /admin/teams`, `GET /admin/teams/:id`, `PATCH /admin/teams/:id`, `POST /admin/teams/:id/deactivate`, `POST /admin/teams/:id/reactivate`: admin lifecycle. Lists accept `page`, `pageSize`, optional `active=true|false`, and `search`. PATCH accepts only name/description. Lifecycle POST bodies must be empty objects. Deactivation retains memberships, managers, inquiry links, and category defaults; inactive teams cannot receive new memberships or manager assignments and do not grant manager reads.
+- `GET /admin/teams/:id/members`, `POST /admin/teams/:id/members` with strict `{ "userId": UUID }`, `DELETE /admin/teams/:id/members/:userId`: ACTIVE users can belong to multiple active teams. Duplicate add returns 409; missing removal returns 404. Removal is recorded in `ManagementAudit`.
+- `POST /admin/teams/:id/managers` with strict `{ "userId": UUID }`, `DELETE /admin/teams/:id/managers/:userId`: only ACTIVE MANAGER users may be assigned to active teams. Assignment is separate from ordinary membership. Duplicate add returns 409; missing removal returns 404.
+- `GET /teams`, `GET /teams/:id`: managers see active teams they explicitly manage; employees see active teams they belong to; admins see all. Lists use `page` and `pageSize`.
+- `GET /teams/:id/members`: admins and managers of that active team may view a limited member projection. Employees cannot view the list.
+- `POST /admin/categories`: strict `{ "name": string, "description"?: string | null, "defaultTeamId"?: UUID | null }`; name is trimmed and case-insensitively unique. A non-null default must identify an active team.
+- `GET /admin/categories`, `GET /admin/categories/:id`, `PATCH /admin/categories/:id`, `POST /admin/categories/:id/deactivate`, `POST /admin/categories/:id/reactivate`: admin lifecycle. Lists accept the team-list filters. PATCH accepts only name, description, and defaultTeamId. Deactivation preserves inquiry links. Existing default-team links remain when a team is deactivated; future assignment code must verify that the team is active. Set `defaultTeamId` to null or an active team to change it. No ticket is assigned automatically.
+- `GET /categories`, `GET /categories/:id`: authenticated staff see active categories with id, name, and description. The list is paginated; inaccessible or inactive details return 404.
+
+`ManagementAudit` records the actor, target type/ID, action, time, and safe before/after values in the same transaction as each change. `AccountAudit` continues to record account-state transitions. Team and role authorization is read from PostgreSQL on each request; manager assignment and membership removals take effect on the next request.

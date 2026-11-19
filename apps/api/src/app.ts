@@ -7,6 +7,9 @@ import { createSessionMiddleware } from './auth/session.js';
 import { sendError } from './auth/errors.js';
 import { createInquiryRouter } from './modules/inquiries/inquiry.routes.js';
 import { createAccountRouter } from './admin/account.routes.js';
+import { createManagementRouter } from './admin/management.routes.js';
+import { createTeamReadRouter } from './modules/teams/team.routes.js';
+import { createCategoryReadRouter } from './modules/categories/category.routes.js';
 import {
   browserCors,
   requireApprovedOrigin,
@@ -28,6 +31,9 @@ export function createApp(
   app.use(createSessionMiddleware(config, store));
   app.use('/auth', createAuthRouter(database, config));
   app.use('/admin', createAccountRouter(database, config));
+  app.use('/admin', createManagementRouter(database, config));
+  app.use('/teams', createTeamReadRouter(database, config));
+  app.use('/categories', createCategoryReadRouter(database, config));
   app.use('/inquiries', createInquiryRouter(database, config));
   app.use(
     (

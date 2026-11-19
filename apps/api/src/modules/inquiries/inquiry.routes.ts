@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import type { AuthConfig } from '../../config/auth.js';
 import { requireAuth } from '../../middleware/require-auth.js';
 import { sendError } from '../../auth/errors.js';
@@ -19,6 +20,19 @@ import {
 function ownerId(request: Request): string {
   if (!request.authUser) throw new Error('Authenticated user was not resolved');
   return request.authUser.id;
+}
+
+function readScope(request: Request): Prisma.InquiryWhereInput {
+  const user = request.authUser!;
+  if (user.role === 'ADMIN') return {};
+  if (user.role === 'MANAGER')
+    return {
+      OR: [
+        { createdById: user.id },
+        { team: { active: true, managers: { some: { userId: user.id } } } },
+      ],
+    };
+  return { createdById: user.id };
 }
 
 export function createInquiryRouter(
@@ -59,7 +73,7 @@ export function createInquiryRouter(
       );
     const result = await listInquiries(
       database,
-      request.authUser?.role === 'ADMIN' ? null : ownerId(request),
+      readScope(request),
       parsed.data,
     );
     return response.status(200).json(result);
@@ -71,7 +85,7 @@ export function createInquiryRouter(
       return sendError(response, 400, 'INVALID_INPUT', 'Invalid inquiry ID.');
     const inquiry = await getInquiry(
       database,
-      request.authUser?.role === 'ADMIN' ? null : ownerId(request),
+      readScope(request),
       parsedId.data,
     );
     if (!inquiry)

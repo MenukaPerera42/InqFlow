@@ -55,7 +55,7 @@ Database tests use the dedicated `inquiry_test` schema and require the running P
 
 ## Limits and submission notes
 
-The ownership rule is creator-only. Status changes are forward-only and version-protected. Each successful POST creates a separate inquiry; the UI disables an in-flight submit but cannot guarantee exactly-once creation after a lost response. The login limiter is process-local. A production deployment and the assessment's required 3–5 minute screen recording are outside this repository. See [DECISIONS.md](DECISIONS.md), [assessment matrix](docs/ASSESSMENT_COMPLIANCE.md), and [security review](docs/SECURITY_REVIEW.md) for rationale, evidence, and remaining risks.
+Employees retain creator-only inquiry access. Managers can also read inquiries explicitly linked to active teams they currently manage. Status changes remain creator-scoped (or admin-wide), forward-only, and version-protected. Each successful POST creates a separate inquiry; the UI disables an in-flight submit but cannot guarantee exactly-once creation after a lost response. The login limiter is process-local. A production deployment and the assessment's required 3–5 minute screen recording are outside this repository. See [DECISIONS.md](DECISIONS.md), [assessment matrix](docs/ASSESSMENT_COMPLIANCE.md), and [security review](docs/SECURITY_REVIEW.md) for rationale, evidence, and remaining risks.
 
 ## V2 Phase 01 persistence and administrator bootstrap
 
@@ -67,4 +67,8 @@ For isolated persistence and bootstrap checks, run `npm run db:test:prepare`, `n
 
 ## V2 Phase 02 account API
 
-`POST /auth/register` creates a pending employee registration without a login session. An ACTIVE ADMIN can review pending users and approve/reject them through `/admin/users` routes, and suspend/reactivate non-admin accounts. Team assignment is optional and has no API yet. The existing inquiry workflow remains available to active staff; admins can access all inquiries. See [docs/API.md](docs/API.md) for exact contracts. Run `npm run test:accounts` for the PostgreSQL-backed account lifecycle tests after `npm run db:test:prepare`.
+`POST /auth/register` creates a pending employee registration without a login session. An ACTIVE ADMIN can review pending users and approve/reject them through `/admin/users` routes, and suspend/reactivate non-admin accounts. Team assignment is optional. The existing inquiry workflow remains available to active staff; admins can access all inquiries. See [docs/API.md](docs/API.md) for exact contracts. Run `npm run test:accounts` for the PostgreSQL-backed account lifecycle tests after `npm run db:test:prepare`.
+
+## V2 Phase 03 management API
+
+`npm run db:deploy` applies the additive Phase 03 migration. Administrators can change active users' roles, manage teams and categories, add or remove team members, and assign managers to teams. Team membership and manager authority are separate relationships: either can span multiple teams, and neither is required for registration or personal inquiries. Managers may read only active teams they explicitly manage and their membership lists. Employees may read only active teams they belong to. Active categories are readable by authenticated staff. Managers can read inquiries explicitly linked to active managed teams; status mutation retains the V1 creator/admin rule. No API assigns an inquiry to a team in this phase. Run `npm run test:management` after `npm run db:test:prepare`.

@@ -17,3 +17,5 @@ Every phase preserves the V1 sign-in → capture → find → advance lifecycle.
 Phase 01 database foundation and bootstrap implementation completed on 19 November 2026; Phase 02 remains unstarted. Before Phase 02, confirm the final RBAC and account-recovery policies and review the Phase 01 migration evidence and remaining dependency advisories.
 
 Phase 02 implements backend registration, administrator account review and state transitions, account audit history, active-role checks, and admin-wide inquiry access. Role management, team membership APIs, assignment, comments, notifications, and frontend account pages remain deferred.
+
+The approved InqFlow V2 Phase 03 prompt supersedes the proposal table's old numbering. Phase 03 now implements backend user roles, team/category lifecycle, multiple membership, explicit manager scope, auditing, and scoped read authorization. Ticket routing, assignment, priority workflow, comments, notifications, analytics, and the frontend rebuild remain later phases and require separate approval.

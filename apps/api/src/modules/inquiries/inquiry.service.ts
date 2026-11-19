@@ -39,11 +39,11 @@ export async function createInquiry(
 
 export async function listInquiries(
   database: PrismaClient,
-  ownerId: string | null,
+  scope: Prisma.InquiryWhereInput,
   input: ListInquiriesInput,
 ) {
   const where: Prisma.InquiryWhereInput = {
-    ...(ownerId ? { createdById: ownerId } : {}),
+    ...scope,
     ...(input.status ? { status: input.status } : {}),
     ...(input.search
       ? {
@@ -77,11 +77,11 @@ export async function listInquiries(
 
 export async function getInquiry(
   database: PrismaClient,
-  ownerId: string | null,
+  scope: Prisma.InquiryWhereInput,
   id: string,
 ) {
   return database.inquiry.findFirst({
-    where: { id, ...(ownerId ? { createdById: ownerId } : {}) },
+    where: { id, ...scope },
     select: inquirySelect,
   });
 }
@@ -98,7 +98,11 @@ export async function updateInquiryStatus(
     }
   | { ok: false; error: StatusError }
 > {
-  const current = await getInquiry(database, ownerId, id);
+  const current = await getInquiry(
+    database,
+    ownerId ? { createdById: ownerId } : {},
+    id,
+  );
   if (!current) return { ok: false, error: 'NOT_FOUND' };
   if (current.version !== input.version)
     return { ok: false, error: 'VERSION_CONFLICT' };
@@ -119,7 +123,11 @@ export async function updateInquiryStatus(
   if (updated[0]) return { ok: true, data: updated[0] };
 
   // Another request changed or removed the owned row after the initial read.
-  const latest = await getInquiry(database, ownerId, id);
+  const latest = await getInquiry(
+    database,
+    ownerId ? { createdById: ownerId } : {},
+    id,
+  );
   if (!latest) return { ok: false, error: 'NOT_FOUND' };
   if (latest.version !== input.version)
     return { ok: false, error: 'VERSION_CONFLICT' };
