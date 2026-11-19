@@ -61,3 +61,21 @@ A stale version returns 409 `VERSION_CONFLICT`; an invalid transition returns 40
 - 500 `INTERNAL_ERROR`: unexpected infrastructure failure; internal details are not returned.
 
 Authentication routes remain `POST /auth/login`, `GET /auth/me`, and `POST /auth/logout` as described in the README.
+
+## V2 Phase 02 account API
+
+`POST /auth/register` accepts only `{ "name", "email", "password" }`. Name is trimmed (2–120 characters), email is normalized to lowercase, and password must be 16–1024 characters with uppercase, lowercase, digit, and symbol. Unknown fields are rejected. A valid request returns 201 `{ "message": "Registration submitted for administrator review.", "accountStatus": "PENDING" }` without setting a session. An existing email receives the same public response; it does not create another account. The registration endpoint has a process-local 30-per-15-minute IP limit. Unsafe requests still require an approved Origin.
+
+All `/admin` routes require an authenticated ACTIVE ADMIN. Employees and managers receive 403. Responses project only `id`, `name`, `email`, `role`, `accountStatus`, and `createdAt`; password hashes and session data are omitted.
+
+- `GET /admin/users?page=1&pageSize=10&status=PENDING`: paginated users, with optional status. Page size is at most 50.
+- `GET /admin/users/pending?page=1&pageSize=10`: paginated pending registrations.
+- `GET /admin/users/:id`: safe user detail.
+- `POST /admin/users/:id/approve`: PENDING → ACTIVE for an employee, no team required.
+- `POST /admin/users/:id/reject`: PENDING → REJECTED for an employee.
+- `POST /admin/users/:id/suspend`: ACTIVE → SUSPENDED for a non-admin account.
+- `POST /admin/users/:id/reactivate`: SUSPENDED → ACTIVE for a non-admin account.
+
+Account-action POST bodies must be empty JSON objects. Successful actions return 200 `{ "data": { ...safe user fields... } }`. Invalid input returns 400, missing authentication 401, non-admin 403, missing ID 404, conflicting/stale state or self-action 409 `ACCOUNT_CONFLICT`, and rate-limit excess 429. Each successful state change writes an `AccountAudit` row atomically. Suspended users lose protected access on their next request, including with an existing session cookie. Administrator accounts cannot be suspended through these routes. Role changes and team management are deferred.
+
+Admins may list, view, and update inquiries system-wide through the existing inquiry endpoints. Managers and employees retain creator-scoped inquiry access. Existing V1 response shapes and status rules are unchanged.

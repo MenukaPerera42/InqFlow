@@ -57,7 +57,11 @@ export function createInquiryRouter(
         'INVALID_INPUT',
         'Invalid inquiry filters.',
       );
-    const result = await listInquiries(database, ownerId(request), parsed.data);
+    const result = await listInquiries(
+      database,
+      request.authUser?.role === 'ADMIN' ? null : ownerId(request),
+      parsed.data,
+    );
     return response.status(200).json(result);
   });
 
@@ -65,7 +69,11 @@ export function createInquiryRouter(
     const parsedId = inquiryIdSchema.safeParse(request.params.id);
     if (!parsedId.success)
       return sendError(response, 400, 'INVALID_INPUT', 'Invalid inquiry ID.');
-    const inquiry = await getInquiry(database, ownerId(request), parsedId.data);
+    const inquiry = await getInquiry(
+      database,
+      request.authUser?.role === 'ADMIN' ? null : ownerId(request),
+      parsedId.data,
+    );
     if (!inquiry)
       return sendError(response, 404, 'NOT_FOUND', 'Inquiry not found.');
     return response.status(200).json({ data: inquiry });
@@ -84,7 +92,7 @@ export function createInquiryRouter(
     }
     const result = await updateInquiryStatus(
       database,
-      ownerId(request),
+      request.authUser?.role === 'ADMIN' ? null : ownerId(request),
       parsedId.data,
       parsedBody.data,
     );

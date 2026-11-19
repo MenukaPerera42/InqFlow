@@ -15,7 +15,13 @@ export function requireAuth(database: PrismaClient, config: AuthConfig) {
     try {
       const user = await database.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, email: true, accountStatus: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          accountStatus: true,
+        },
       });
       if (!user || user.accountStatus !== 'ACTIVE') {
         request.session.destroy((error) => {
@@ -25,7 +31,12 @@ export function requireAuth(database: PrismaClient, config: AuthConfig) {
         });
         return;
       }
-      request.authUser = { id: user.id, name: user.name, email: user.email };
+      request.authUser = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      };
       next();
     } catch (error) {
       next(error);
@@ -35,6 +46,11 @@ export function requireAuth(database: PrismaClient, config: AuthConfig) {
 
 declare module 'express-serve-static-core' {
   interface Request {
-    authUser?: { id: string; name: string; email: string };
+    authUser?: {
+      id: string;
+      name: string;
+      email: string;
+      role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+    };
   }
 }

@@ -39,11 +39,11 @@ export async function createInquiry(
 
 export async function listInquiries(
   database: PrismaClient,
-  ownerId: string,
+  ownerId: string | null,
   input: ListInquiriesInput,
 ) {
   const where: Prisma.InquiryWhereInput = {
-    createdById: ownerId,
+    ...(ownerId ? { createdById: ownerId } : {}),
     ...(input.status ? { status: input.status } : {}),
     ...(input.search
       ? {
@@ -77,18 +77,18 @@ export async function listInquiries(
 
 export async function getInquiry(
   database: PrismaClient,
-  ownerId: string,
+  ownerId: string | null,
   id: string,
 ) {
   return database.inquiry.findFirst({
-    where: { id, createdById: ownerId },
+    where: { id, ...(ownerId ? { createdById: ownerId } : {}) },
     select: inquirySelect,
   });
 }
 
 export async function updateInquiryStatus(
   database: PrismaClient,
-  ownerId: string,
+  ownerId: string | null,
   id: string,
   input: UpdateStatusInput,
 ): Promise<
@@ -109,7 +109,7 @@ export async function updateInquiryStatus(
   const updated = await database.inquiry.updateManyAndReturn({
     where: {
       id,
-      createdById: ownerId,
+      ...(ownerId ? { createdById: ownerId } : {}),
       version: input.version,
       status: current.status,
     },

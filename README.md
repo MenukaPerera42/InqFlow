@@ -64,3 +64,7 @@ Run `npm run db:deploy` and `npm run db:generate` after updating the repository.
 The initial admin is **not** created by migration or seed. To create it once, supply `INQFLOW_ADMIN_EMAIL` and `INQFLOW_ADMIN_PASSWORD` in the process environment from a secure interactive prompt or secret manager, then run `npm run db:bootstrap-admin`. The password must be at least 16 characters and contain uppercase, lowercase, digit, and symbol characters. Do not pass it as a command-line argument, store it in `.env`, or commit it. The command refuses to promote an existing employee or create a second admin. An administrator UI is deferred to a later V2 phase.
 
 For isolated persistence and bootstrap checks, run `npm run db:test:prepare`, `npm run test:db`, and `npm run test:bootstrap`. The dedicated `inquiry_test` schema is required. Migration and backup evidence is recorded in [the V2 migration plan](docs/v2/DATABASE_MIGRATION_PLAN.md).
+
+## V2 Phase 02 account API
+
+`POST /auth/register` creates a pending employee registration without a login session. An ACTIVE ADMIN can review pending users and approve/reject them through `/admin/users` routes, and suspend/reactivate non-admin accounts. Team assignment is optional and has no API yet. The existing inquiry workflow remains available to active staff; admins can access all inquiries. See [docs/API.md](docs/API.md) for exact contracts. Run `npm run test:accounts` for the PostgreSQL-backed account lifecycle tests after `npm run db:test:prepare`.

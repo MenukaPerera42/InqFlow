@@ -15,3 +15,5 @@ No phase below is authorized by completion of Phase 00. Each checkpoint requires
 Every phase preserves the V1 sign-in → capture → find → advance lifecycle. Do not add deployment, external messaging, real-time infrastructure, or AI assignment without a new decision. Migrations are designed and reviewed before application to persistent data.
 
 Phase 01 database foundation and bootstrap implementation completed on 19 November 2026; Phase 02 remains unstarted. Before Phase 02, confirm the final RBAC and account-recovery policies and review the Phase 01 migration evidence and remaining dependency advisories.
+
+Phase 02 implements backend registration, administrator account review and state transitions, account audit history, active-role checks, and admin-wide inquiry access. Role management, team membership APIs, assignment, comments, notifications, and frontend account pages remain deferred.

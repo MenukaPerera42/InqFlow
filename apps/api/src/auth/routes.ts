@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { Router } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import { rateLimit } from 'express-rate-limit';
-import { loginSchema } from './validation.js';
+import { loginSchema, registrationSchema } from './validation.js';
 import { sendError } from './errors.js';
 import { requireAuth } from '../middleware/require-auth.js';
 import { clearSessionCookie } from './session.js';
@@ -42,6 +42,53 @@ export function createAuthRouter(database: PrismaClient, config: AuthConfig) {
       ),
   });
 
+  const registrationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (_request, response) =>
+      sendError(
+        response,
+        429,
+        'RATE_LIMITED',
+        'Too many registration attempts. Try again later.',
+      ),
+  });
+
+  router.post('/register', registrationLimiter, async (request, response) => {
+    const parsed = registrationSchema.safeParse(request.body);
+    if (!parsed.success)
+      return sendError(
+        response,
+        400,
+        'INVALID_INPUT',
+        'Invalid registration information.',
+      );
+    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+    try {
+      await database.user.create({
+        data: {
+          name: parsed.data.name,
+          email: parsed.data.email,
+          passwordHash,
+          role: 'EMPLOYEE',
+          accountStatus: 'PENDING',
+        },
+      });
+    } catch (error) {
+      if (!(
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ))
+        throw error;
+    }
+    return response.status(201).json({
+      message: 'Registration submitted for administrator review.',
+      accountStatus: 'PENDING',
+    });
+  });
+
   router.post('/login', loginLimiter, async (request, response) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -75,7 +122,10 @@ export function createAuthRouter(database: PrismaClient, config: AuthConfig) {
   });
 
   router.get('/me', requireAuth(database, config), (request, response) => {
-    response.status(200).json({ user: request.authUser });
+    const user = request.authUser!;
+    response
+      .status(200)
+      .json({ user: { id: user.id, name: user.name, email: user.email } });
   });
 
   router.post(

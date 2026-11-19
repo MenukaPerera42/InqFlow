@@ -23,3 +23,7 @@ Proposed endpoint families (contracts to finalize in Phase 01): `/auth/register`
 ## Phase 01 implementation boundary
 
 The schema and CLI bootstrap now exist. Existing HTTP routes and browser pages remain unchanged. Authentication additionally requires ACTIVE account status at login and on each protected request; it does not grant role-specific access yet. Role/team RBAC, assignment writes, comment/event/notification APIs, and analytics remain future work. Admin bootstrap is a direct operator CLI, outside Express routing.
+
+## Phase 02 account boundary
+
+`/auth/register` is public but origin-checked and rate-limited. `/admin/users` is protected by the current database-backed ACTIVE ADMIN role. Account state changes use conditional Prisma updates inside a transaction that also appends an `AccountAudit` record. Existing sessions store only user ID; role and active status are fetched per request. Inquiry services accept an admin-wide query scope while manager/employee calls retain creator filtering. No account-management frontend or team membership API exists yet.

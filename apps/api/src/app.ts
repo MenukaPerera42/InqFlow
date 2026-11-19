@@ -6,6 +6,7 @@ import { createAuthRouter } from './auth/routes.js';
 import { createSessionMiddleware } from './auth/session.js';
 import { sendError } from './auth/errors.js';
 import { createInquiryRouter } from './modules/inquiries/inquiry.routes.js';
+import { createAccountRouter } from './admin/account.routes.js';
 import {
   browserCors,
   requireApprovedOrigin,
@@ -26,6 +27,7 @@ export function createApp(
   app.use(express.json({ limit: '16kb' }));
   app.use(createSessionMiddleware(config, store));
   app.use('/auth', createAuthRouter(database, config));
+  app.use('/admin', createAccountRouter(database, config));
   app.use('/inquiries', createInquiryRouter(database, config));
   app.use(
     (
