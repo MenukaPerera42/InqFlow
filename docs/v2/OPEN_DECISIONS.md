@@ -17,3 +17,7 @@
 | Data retention and audit               | No automatic deletion; archive categories/teams                                                    | Deletion needs legal retention policy and FK/history design.                                    |
 
 Confirm these choices before Phase 01. Implementing the recommended defaults without approval would turn proposals into product policy.
+
+## Resolved for Phase 01
+
+The initial admin uses a one-time CLI; V1 staff migrate to ACTIVE EMPLOYEE without password changes; historical inquiries keep null team/assignee and creator visibility; future creator rights are view/comment and assignee rights include status progression. Phase 01 keeps V1 creator status behavior until Phase 02 policy enforcement. Remaining rows above still need product review where they conflict with these decisions.

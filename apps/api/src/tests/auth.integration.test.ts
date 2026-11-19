@@ -193,6 +193,7 @@ describe.sequential('authentication API', () => {
         name: 'Deleted Staff',
         email,
         passwordHash: await bcrypt.hash(password, 12),
+        accountStatus: 'ACTIVE',
       },
     });
     const agent = request.agent(app);
@@ -203,6 +204,46 @@ describe.sequential('authentication API', () => {
     expect(signedIn.status).toBe(200);
     await database.user.delete({ where: { id: user.id } });
     expect((await agent.get('/auth/me')).status).toBe(401);
+  });
+
+  it('denies pending accounts and invalidates a session after suspension', async () => {
+    const email = `status-${crypto.randomUUID()}@example.test`;
+    const user = await database.user.create({
+      data: {
+        name: 'Status Test',
+        email,
+        passwordHash: await bcrypt.hash(password, 12),
+      },
+    });
+    try {
+      const agent = request.agent(app);
+      const pending = await agent
+        .post('/auth/login')
+        .set('Origin', origin)
+        .send({ email, password });
+      expect(pending.status).toBe(401);
+      expect(pending.body.error.code).toBe('INVALID_CREDENTIALS');
+      await database.user.update({
+        where: { id: user.id },
+        data: { accountStatus: 'ACTIVE' },
+      });
+      expect(
+        (
+          await agent
+            .post('/auth/login')
+            .set('Origin', origin)
+            .send({ email, password })
+        ).status,
+      ).toBe(200);
+      await database.user.update({
+        where: { id: user.id },
+        data: { accountStatus: 'SUSPENDED' },
+      });
+      expect((await agent.get('/auth/me')).status).toBe(401);
+      expect((await agent.get('/inquiries')).status).toBe(401);
+    } finally {
+      await database.user.delete({ where: { id: user.id } });
+    }
   });
 
   it('allows approved CORS and rejects disallowed or missing state-changing origins', async () => {

@@ -28,3 +28,9 @@ No confirmed broken V1 control was found by static inspection. A source review c
 ## Phase 00 checks executed
 
 `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test` (20 tests: API health 1, web 18, port check 1), and `npm run build` passed. The build generated Prisma Client without connecting to PostgreSQL. Fresh audits returned 19 high and 0 critical overall, and 3 high with `--omit=dev`, matching the documented baseline. Database integration suites and browser checks were not executed because Docker was unavailable. These results do not supersede a later clean-install or live-database verification.
+
+## Phase 01 environment update
+
+Docker 28.4.0 became available on 19 November 2026. PostgreSQL 17 in Compose was healthy on host port 55432. Development held two users, 13 inquiries, seven sessions, no orphaned inquiry owners, and one completed V1 migration before Phase 01. A custom-format backup restored successfully into an isolated PostgreSQL container before any development migration. The additive V2 migration then applied successfully. Node 26.11.1/npm 12.2.0 remained in use; no global runtime switch or dependency upgrade occurred.
+
+Phase 01 fresh audits on 19 November 2026 report 3 high entries both overall and with `--omit=dev`: `prisma`, `@prisma/config`, and `deepmerge-ts`. The earlier 19-entry result was a point-in-time advisory result; no dependency was upgraded in Phase 01. The remaining chain is documented in `docs/SECURITY_REVIEW.md` and needs a separately reviewed Prisma major-version decision.

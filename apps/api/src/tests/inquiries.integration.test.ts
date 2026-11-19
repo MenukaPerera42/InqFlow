@@ -63,10 +63,20 @@ beforeAll(async () => {
   await database.$connect();
   const passwordHash = await bcrypt.hash(password, 12);
   userA = await database.user.create({
-    data: { name: 'Inquiry Staff A', email: emailA, passwordHash },
+    data: {
+      name: 'Inquiry Staff A',
+      email: emailA,
+      passwordHash,
+      accountStatus: 'ACTIVE',
+    },
   });
   userB = await database.user.create({
-    data: { name: 'Inquiry Staff B', email: emailB, passwordHash },
+    data: {
+      name: 'Inquiry Staff B',
+      email: emailB,
+      passwordHash,
+      accountStatus: 'ACTIVE',
+    },
   });
   agentA = request.agent(app);
   agentB = request.agent(app);

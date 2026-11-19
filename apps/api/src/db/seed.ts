@@ -18,7 +18,12 @@ export async function seedStaff(
   for (const account of staffAccounts) {
     await database.user.upsert({
       where: { email: account.email },
-      create: { ...account, passwordHash },
+      create: {
+        ...account,
+        passwordHash,
+        role: 'EMPLOYEE',
+        accountStatus: 'ACTIVE',
+      },
       update: {},
     });
   }

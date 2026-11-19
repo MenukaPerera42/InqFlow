@@ -58,7 +58,7 @@ export function createAuthRouter(database: PrismaClient, config: AuthConfig) {
     const valid = user
       ? await bcrypt.compare(parsed.data.password, user.passwordHash)
       : false;
-    if (!user || !valid) {
+    if (!user || !valid || user.accountStatus !== 'ACTIVE') {
       return sendError(
         response,
         401,

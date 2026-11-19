@@ -48,6 +48,101 @@ afterAll(async () => {
 });
 
 describe('database constraints', () => {
+  it('persists team, category, assignment, comment, event, and notification links', async () => {
+    const user = await createUser('v2-relations');
+    const team = await database.team.create({
+      data: { name: `${prefix}-team` },
+    });
+    const category = await database.category.create({
+      data: { name: `${prefix}-category` },
+    });
+    try {
+      await database.teamMembership.create({
+        data: { teamId: team.id, userId: user.id },
+      });
+      await expect(
+        database.teamMembership.create({
+          data: { teamId: team.id, userId: user.id },
+        }),
+      ).rejects.toMatchObject({ code: 'P2002' });
+      const inquiry = await database.inquiry.create({
+        data: {
+          customerName: 'Fictional Customer',
+          customerContact: 'customer@example.test',
+          subject: 'V2 relation check',
+          description: 'Persistence only',
+          createdById: user.id,
+          assignedToId: user.id,
+          teamId: team.id,
+          categoryId: category.id,
+        },
+      });
+      try {
+        expect(inquiry.priority).toBe('MEDIUM');
+        await database.assignmentHistory.create({
+          data: {
+            inquiryId: inquiry.id,
+            actorId: user.id,
+            assigneeId: user.id,
+          },
+        });
+        await database.ticketComment.create({
+          data: {
+            inquiryId: inquiry.id,
+            authorId: user.id,
+            body: 'Test comment',
+          },
+        });
+        await database.ticketEvent.create({
+          data: { inquiryId: inquiry.id, actorId: user.id, type: 'TEST_EVENT' },
+        });
+        await database.notification.create({
+          data: {
+            inquiryId: inquiry.id,
+            recipientId: user.id,
+            type: 'TEST',
+            message: 'Test notice',
+          },
+        });
+        expect(
+          (
+            await database.inquiry.findUniqueOrThrow({
+              where: { id: inquiry.id },
+              include: {
+                assignmentHistory: true,
+                comments: true,
+                events: true,
+                notifications: true,
+              },
+            })
+          ).comments,
+        ).toHaveLength(1);
+        expect(
+          await database.notification.count({
+            where: { recipientId: user.id },
+          }),
+        ).toBe(1);
+      } finally {
+        await database.notification.deleteMany({
+          where: { inquiryId: inquiry.id },
+        });
+        await database.ticketEvent.deleteMany({
+          where: { inquiryId: inquiry.id },
+        });
+        await database.ticketComment.deleteMany({
+          where: { inquiryId: inquiry.id },
+        });
+        await database.assignmentHistory.deleteMany({
+          where: { inquiryId: inquiry.id },
+        });
+        await database.inquiry.delete({ where: { id: inquiry.id } });
+      }
+    } finally {
+      await database.teamMembership.deleteMany({ where: { teamId: team.id } });
+      await database.category.delete({ where: { id: category.id } });
+      await database.team.delete({ where: { id: team.id } });
+    }
+  });
   it('rejects duplicate user email', async () => {
     const user = await createUser('unique');
     await expect(

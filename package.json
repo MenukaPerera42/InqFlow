@@ -22,7 +22,9 @@
     "db:test:prepare": "node apps/api/scripts/prepare-test-db.mjs",
     "test:db": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/database.integration.test.ts",
     "test:auth": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/auth.integration.test.ts",
-    "test:inquiries": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/inquiries.integration.test.ts"
+    "test:inquiries": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/inquiries.integration.test.ts",
+    "db:bootstrap-admin": "node --env-file=.env --import tsx apps/api/src/identity/bootstrap-admin.cli.ts",
+    "test:bootstrap": "node --env-file=.env node_modules/vitest/vitest.mjs run --root apps/api src/tests/admin-bootstrap.integration.test.ts"
   },
   "devDependencies": {
     "prettier": "^3.6.2"

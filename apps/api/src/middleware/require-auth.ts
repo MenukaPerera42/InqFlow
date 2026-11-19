@@ -15,9 +15,9 @@ export function requireAuth(database: PrismaClient, config: AuthConfig) {
     try {
       const user = await database.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true, email: true, accountStatus: true },
       });
-      if (!user) {
+      if (!user || user.accountStatus !== 'ACTIVE') {
         request.session.destroy((error) => {
           if (error) return next(error);
           clearSessionCookie(response, config);
@@ -25,7 +25,7 @@ export function requireAuth(database: PrismaClient, config: AuthConfig) {
         });
         return;
       }
-      request.authUser = user;
+      request.authUser = { id: user.id, name: user.name, email: user.email };
       next();
     } catch (error) {
       next(error);

@@ -13,7 +13,7 @@
 | List/detail ticket           | Own                          | Authorized team plus own                | All                                      |
 | Suggest assignment           | Deny                         | Authorized team                         | All                                      |
 | Confirm/reassign ticket      | Deny                         | Authorized team and eligible assignee   | All, subject to integrity rules          |
-| Change ticket status         | Own, if policy permits       | Authorized team                         | All                                      |
+| Change ticket status         | Assigned ticket only         | Authorized team                         | All                                      |
 | Add comment/read history     | Own                          | Authorized team                         | All                                      |
 | Read notifications           | Recipient only               | Recipient only                          | Recipient only                           |
 | Analytics                    | Own summary if approved      | Authorized teams                        | Global                                   |
@@ -23,7 +23,7 @@
 - **Unassigned:** visible to admin and the authorized team queue; an employee creator keeps access. Teamless unassigned visibility is an open decision.
 - **Cross-team:** manager cannot assign outside authorized teams or to ineligible employees; service must check both ticket and assignee team membership in one transaction.
 - **Role/team changes:** new authorization applies immediately to subsequent requests; clear or invalidate old sessions/caches on revocation. Never trust a role stored only in the session.
-- **Creator vs assignee:** both may view; status/comment rights and creator visibility after transfer require final product approval.
+- **Creator vs assignee:** creator may view/comment; assigned employee may view/comment/progress status. Phase 01 retains V1 creator progression until Phase 02 policy enforcement.
 - **Hidden IDs:** consistent 404 for inaccessible ticket details/updates prevents enumeration. Administrative list endpoints may use 403 for denied operations.
 - **Pending/rejected/suspended:** login response should be generic enough to limit account enumeration; signup duplicate email response must not reveal account state. Suspended users lose access even with an existing cookie.
 

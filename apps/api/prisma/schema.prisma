@@ -13,28 +13,156 @@ enum InquiryStatus {
   RESOLVED
 }
 
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  name         String
-  email        String    @unique
-  passwordHash String
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
-  inquiries    Inquiry[]
+  id                String              @id @default(uuid()) @db.Uuid
+  name              String
+  email             String              @unique
+  passwordHash      String
+  role              UserRole            @default(EMPLOYEE)
+  accountStatus     AccountStatus       @default(PENDING)
+  createdAt         DateTime            @default(now()) @db.Timestamptz(3)
+  inquiries         Inquiry[]           @relation("Creator")
+  assignments       Inquiry[]           @relation("Assignee")
+  teamMemberships   TeamMembership[]
+  assignmentActions AssignmentHistory[] @relation("AssignmentActor")
+  assignmentTargets AssignmentHistory[] @relation("AssignmentTarget")
+  comments          TicketComment[]
+  events            TicketEvent[]
+  notifications     Notification[]
+}
+
+model Team {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique
+  description String?
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  memberships TeamMembership[]
+  inquiries   Inquiry[]
+}
+
+model TeamMembership {
+  teamId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([teamId, userId])
+  @@index([userId])
+}
+
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique
+  description String?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  inquiries   Inquiry[]
 }
 
 model Inquiry {
-  id              String        @id @default(uuid()) @db.Uuid
-  customerName    String
-  customerContact String
-  subject         String
-  description     String        @db.Text
-  status          InquiryStatus @default(NEW)
-  createdById     String        @db.Uuid
-  createdBy       User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  version         Int           @default(1)
-  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+  id                String              @id @default(uuid()) @db.Uuid
+  customerName      String
+  customerContact   String
+  subject           String
+  description       String              @db.Text
+  status            InquiryStatus       @default(NEW)
+  createdById       String              @db.Uuid
+  createdBy         User                @relation("Creator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedToId      String?             @db.Uuid
+  assignedTo        User?               @relation("Assignee", fields: [assignedToId], references: [id], onDelete: Restrict)
+  teamId            String?             @db.Uuid
+  team              Team?               @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  categoryId        String?             @db.Uuid
+  category          Category?           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  priority          TicketPriority      @default(MEDIUM)
+  version           Int                 @default(1)
+  createdAt         DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime            @updatedAt @db.Timestamptz(3)
+  assignmentHistory AssignmentHistory[]
+  comments          TicketComment[]
+  events            TicketEvent[]
+  notifications     Notification[]
 
   @@index([createdById, createdAt])
   @@index([createdById, status])
+  @@index([assignedToId, status, createdAt])
+  @@index([teamId, status, createdAt])
+  @@index([categoryId, priority])
+}
+
+model AssignmentHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  inquiryId  String   @db.Uuid
+  actorId    String   @db.Uuid
+  assigneeId String?  @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  inquiry    Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Restrict)
+  actor      User     @relation("AssignmentActor", fields: [actorId], references: [id], onDelete: Restrict)
+  assignee   User?    @relation("AssignmentTarget", fields: [assigneeId], references: [id], onDelete: Restrict)
+
+  @@index([inquiryId, createdAt, id])
+}
+
+model TicketComment {
+  id        String    @id @default(uuid()) @db.Uuid
+  inquiryId String    @db.Uuid
+  authorId  String    @db.Uuid
+  body      String    @db.Text
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  editedAt  DateTime? @db.Timestamptz(3)
+  inquiry   Inquiry   @relation(fields: [inquiryId], references: [id], onDelete: Restrict)
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([inquiryId, createdAt, id])
+}
+
+model TicketEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  inquiryId String   @db.Uuid
+  actorId   String?  @db.Uuid
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  inquiry   Inquiry  @relation(fields: [inquiryId], references: [id], onDelete: Restrict)
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([inquiryId, createdAt, id])
+}
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  recipientId String    @db.Uuid
+  inquiryId   String?   @db.Uuid
+  type        String
+  message     String
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  readAt      DateTime? @db.Timestamptz(3)
+  recipient   User      @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+  inquiry     Inquiry?  @relation(fields: [inquiryId], references: [id], onDelete: Restrict)
+
+  @@index([recipientId, readAt, createdAt])
 }

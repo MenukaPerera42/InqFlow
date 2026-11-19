@@ -13,3 +13,5 @@ No phase below is authorized by completion of Phase 00. Each checkpoint requires
 | 06 — V2 hardening                   | Full regression, data migration verification, security/dependency review, docs                              | Clean install/build, isolated DB tests, end-to-end browser role workflows, approval for handover.                      |
 
 Every phase preserves the V1 sign-in → capture → find → advance lifecycle. Do not add deployment, external messaging, real-time infrastructure, or AI assignment without a new decision. Migrations are designed and reviewed before application to persistent data.
+
+Phase 01 database foundation and bootstrap implementation completed on 19 November 2026; Phase 02 remains unstarted. Before Phase 02, confirm the final RBAC and account-recovery policies and review the Phase 01 migration evidence and remaining dependency advisories.

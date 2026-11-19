@@ -19,3 +19,7 @@ Request flow: browser → credentialed Fetch → Express Origin/session validati
 - Extend the current typed Fetch client and TanStack Query incrementally. No new global store is justified.
 
 Proposed endpoint families (contracts to finalize in Phase 01): `/auth/register`, `/admin/users`, `/teams`, `/categories`, `/inquiries` plus assignment/comments/events, `/notifications`, and `/analytics`. Endpoint creation is not authorized in Phase 00. Every interactive frontend control must map to a permitted API action.
+
+## Phase 01 implementation boundary
+
+The schema and CLI bootstrap now exist. Existing HTTP routes and browser pages remain unchanged. Authentication additionally requires ACTIVE account status at login and on each protected request; it does not grant role-specific access yet. Role/team RBAC, assignment writes, comment/event/notification APIs, and analytics remain future work. Admin bootstrap is a direct operator CLI, outside Express routing.
